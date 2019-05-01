@@ -484,16 +484,7 @@ func resourceAppCreate(d *schema.ResourceData, meta interface{}) (err error) {
 				return
 			}
 
-			// Do not remove files from the local file system
-			if v, ok := d.GetOk("url"); ok {
-				url := v.(string)
-
-				if !strings.HasPrefix(url, "file://") {
-					err = os.RemoveAll(appPath)
-				}
-			} else {
-				err = os.RemoveAll(appPath)
-			}
+			err = deleteDownloadedApp(d, appPath)
 
 			upload <- err
 		}()
@@ -583,6 +574,21 @@ func resourceAppCreate(d *schema.ResourceData, meta interface{}) (err error) {
 	}
 
 	return err
+}
+
+// Do not remove files from the local file system
+func deleteDownloadedApp(d *schema.ResourceData, appPath string) (err error) {
+	if v, ok := d.GetOk("url"); ok {
+		url := v.(string)
+
+		if !strings.HasPrefix(url, "file://") {
+			return os.RemoveAll(appPath)
+		}
+	} else {
+		return os.RemoveAll(appPath)
+	}
+
+	return nil
 }
 
 func resourceAppRead(d *schema.ResourceData, meta interface{}) (err error) {
@@ -966,7 +972,7 @@ func resourceAppUpdate(d *schema.ResourceData, meta interface{}) error {
 			appPath = appPathCalc
 		}
 		defer func() {
-			os.RemoveAll(appPath)
+			deleteDownloadedApp(d, appPath)
 		}()
 		if v, ok = d.GetOk("add_content"); ok {
 			addContent = getListOfStructs(v)
